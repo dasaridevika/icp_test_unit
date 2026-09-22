@@ -405,13 +405,13 @@ class GTMScoringEngine:
         eco_str = eco_choice.choice if eco_choice else "Standard Modern Cloud (+3)"
         tech_pts = 5 if "High Synergy" in eco_str else (3 if "Standard" in eco_str else 1)
         
-        modern_tools_found = [t for t in ["AWS", "Snowflake", "Databricks", "Salesforce", "Azure", "GCP", "Kubernetes"] if t.lower() in (form.tech_stack_notes or "").lower()]
-        legacy_tools_found = [t for t in ["AS400", "Mainframe", "Monolith", "Spreadsheets"] if t.lower() in (form.tech_stack_notes or "").lower()]
+        # Dynamically extract tools from user input notes
+        raw_tech_list = [t.strip() for t in (form.tech_stack_notes or "").replace(",", " ").split() if len(t.strip()) > 2]
         
         ai_tech = TechStackAIAnalysis(
             raw_stack=form.tech_stack_notes or "",
-            modern_tools=modern_tools_found,
-            legacy_blockers=legacy_tools_found,
+            modern_tools=raw_tech_list if "High Synergy" in eco_str or "Standard" in eco_str else [],
+            legacy_blockers=raw_tech_list if "Legacy" in eco_str else [],
             ecosystem_fit=eco_str,
             tech_points=tech_pts,
             rationale=f"Jev evaluated ecosystem compatibility as: {eco_str}."
