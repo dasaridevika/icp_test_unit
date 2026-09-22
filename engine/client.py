@@ -65,13 +65,27 @@ class JevClient:
         api_key: Optional[str] = None,
         api_url: Optional[str] = None
     ):
-        # Read API key from parameter or environment (accepts both JEV_API_KEY and TYPESAFE_API_KEY)
-        self.api_key = (
+        # Read API key from parameter, OS environment, or Streamlit Cloud Secrets (st.secrets)
+        key_found = (
             api_key or
             os.environ.get("JEV_API_KEY") or
             os.environ.get("TYPESAFE_API_KEY") or
             ""
         ).strip()
+
+        if not key_found:
+            try:
+                import streamlit as st
+                if hasattr(st, "secrets"):
+                    key_found = str(
+                        st.secrets.get("JEV_API_KEY") or
+                        st.secrets.get("TYPESAFE_API_KEY") or
+                        ""
+                    ).strip()
+            except Exception:
+                pass
+
+        self.api_key = key_found
         self.api_url = api_url or DEFAULT_API_URL
         self._sdk_client = None
 
