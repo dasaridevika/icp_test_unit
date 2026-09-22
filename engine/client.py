@@ -60,32 +60,57 @@ class JevClient:
     Executes live parallel question evaluations. Requires JEV_API_KEY or TYPESAFE_API_KEY.
     """
 
+    @staticmethod
+    def find_configured_key(explicit_key: Optional[str] = None) -> str:
+        """Finds Jev/TypeSafe API key across all environment and Streamlit Secrets formats."""
+        if explicit_key and len(explicit_key.strip()) > 3:
+            return explicit_key.strip()
+
+        # 1. Search OS Environment (All common casings)
+        for env_var in ["JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key", "JEV_KEY", "JEV_TOKEN"]:
+            val = os.environ.get(env_var, "").strip()
+            if val and len(val) > 3:
+                return val
+
+        # 2. Search Streamlit Secrets (Root and Nested Sections)
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and st.secrets:
+                # Direct lookups
+                for k in ["JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key", "JEV_KEY", "JEV_TOKEN"]:
+                    try:
+                        val = str(st.secrets.get(k, "")).strip()
+                        if val and len(val) > 3:
+                            return val
+                    except Exception:
+                        pass
+
+                # Deep search across all sections/keys in st.secrets
+                try:
+                    for root_k, root_v in st.secrets.items():
+                        if isinstance(root_v, dict):
+                            for sub_k, sub_v in root_v.items():
+                                if any(token in sub_k.lower() for token in ["jev", "typesafe"]):
+                                    s_val = str(sub_v).strip()
+                                    if s_val and len(s_val) > 3:
+                                        return s_val
+                        elif any(token in str(root_k).lower() for token in ["jev", "typesafe"]):
+                            s_val = str(root_v).strip()
+                            if s_val and len(s_val) > 3:
+                                return s_val
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return ""
+
     def __init__(
         self,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None
     ):
-        # Read API key from parameter, OS environment, or Streamlit Cloud Secrets (st.secrets)
-        key_found = (
-            api_key or
-            os.environ.get("JEV_API_KEY") or
-            os.environ.get("TYPESAFE_API_KEY") or
-            ""
-        ).strip()
-
-        if not key_found:
-            try:
-                import streamlit as st
-                if hasattr(st, "secrets"):
-                    key_found = str(
-                        st.secrets.get("JEV_API_KEY") or
-                        st.secrets.get("TYPESAFE_API_KEY") or
-                        ""
-                    ).strip()
-            except Exception:
-                pass
-
-        self.api_key = key_found
+        self.api_key = self.find_configured_key(api_key)
         self.api_url = api_url or DEFAULT_API_URL
         self._sdk_client = None
 

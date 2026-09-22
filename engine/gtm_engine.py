@@ -209,7 +209,7 @@ class GTMScoringEngine:
 
     @classmethod
     def get_jev_client(cls) -> JevClient:
-        if cls._jev_client is None:
+        if cls._jev_client is None or not cls._jev_client.has_api_key:
             cls._jev_client = JevClient()
         return cls._jev_client
 
