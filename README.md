@@ -1,4 +1,4 @@
-# ⚡ Jev ICP Scoring Intelligence & Test Unit
+# ⚡ Jev ICP Scoring Intelligence
 
 A high-velocity, production-grade **B2B Revenue Intelligence & ICP Qualification Engine** powered by **Jev (TypeSafe AI)** System-1 Decision Primitives (`Noul` / `bool`, `Choice`, and `Score`).
 
@@ -7,7 +7,7 @@ A high-velocity, production-grade **B2B Revenue Intelligence & ICP Qualification
 ## 🏛️ System Architecture
 
 ```text
-Lead Inbound Form / Raw Prospect Text
+Streamlit UI Inbound Form
                ↓
     Unified State Dictionary (`build_lead_state`)
                ↓
@@ -16,7 +16,7 @@ Lead Inbound Form / Raw Prospect Text
     ├── Choice        → Role Hierarchy, Buyer Persona & Tech Fit
     └── Score         → Calibrated 4-Pillar Rubric Scoring
                ↓
-    Authoritative GTM Scorer (`engine/scorer.py`)
+    Authoritative GTM Scorer (`engine/gtm_engine.py`)
     ├── 4-Pillar Score Computation (Firmographics, Authority, Intent, Value)
     ├── Master ICP Score (0–100) & Calibrated Priority Tiering
     └── Dynamic SLA Routing & Executive Outreach Opener
@@ -36,15 +36,10 @@ Lead Inbound Form / Raw Prospect Text
 
 ---
 
-## 🔑 GitHub Repository Secrets Setup
+## 🔑 Configuration
 
-To provide your API key securely:
-1. Navigate to your GitHub repository $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**.
-2. Click **New repository secret**.
-3. Name: `JEV_API_KEY` (or `TYPESAFE_API_KEY`).
-4. Value: Paste your Jev API key.
-
-The application and automated CI workflow (`.github/workflows/test.yml`) will automatically pick up the secret.
+Set your Jev / TypeSafe API key in your environment or GitHub Secrets:
+* Variable Name: `JEV_API_KEY` (or `TYPESAFE_API_KEY`)
 
 ---
 
@@ -64,12 +59,6 @@ pip install -r requirements.txt
 
 ```bash
 streamlit run app.py
-```
-
-### 3. Run Automated Test Suites
-
-```bash
-python -m pytest -v tests/
 ```
 
 ---
