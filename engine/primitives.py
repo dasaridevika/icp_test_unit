@@ -26,9 +26,16 @@ class JevPrimitiveDefinition(BaseModel):
         if self.type == "noul" and SdkNoul is not None:
             return SdkNoul(instructions=self.instructions)
         if self.type == "choice" and SdkChoice is not None:
-            return SdkChoice(instructions=self.instructions, criteria=self.criteria)
+            if isinstance(self.criteria, list):
+                crit_dict = {str(opt): None for opt in self.criteria}
+            elif isinstance(self.criteria, dict):
+                crit_dict = self.criteria
+            else:
+                crit_dict = {}
+            return SdkChoice(instructions=self.instructions, criteria=crit_dict)
         if self.type == "score" and SdkScore is not None:
-            return SdkScore(instructions=self.instructions, criteria=self.criteria)
+            levels = list(self.criteria) if isinstance(self.criteria, (list, tuple)) else ["Low", "High"]
+            return SdkScore(instructions=self.instructions, criteria=levels)
         return self
 
 

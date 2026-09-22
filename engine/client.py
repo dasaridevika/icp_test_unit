@@ -167,39 +167,53 @@ class JevClient:
             raise RuntimeError(f"HTTP {resp.status_code}: {resp.text}")
 
     def _parse_sdk_response(self, sdk_resp: Any, latency: float) -> JevResponse:
-        """Parses output from typesafe_sdk TypeSafeClient."""
+        """Parses output from typesafe_sdk TypeSafeClient SystemOneResponse."""
         nouls = {}
         choices = {}
         scores = {}
 
-        if hasattr(sdk_resp, "nouls") and sdk_resp.nouls:
+        # Parse from official typesafe_sdk response schema (sdk_resp.answers)
+        answers = getattr(sdk_resp, "answers", {}) or {}
+        for k, ans in answers.items():
+            ans_type = getattr(ans, "type", "")
+            if ans_type == "noul" or hasattr(ans, "noul"):
+                prob = float(getattr(ans, "noul", 0.5))
+                nouls[k] = NoulResult(
+                    noul=(prob >= 0.5),
+                    probability=prob,
+                    confidence=1.0
+                )
+            elif ans_type == "choice" or hasattr(ans, "choice"):
+                choices[k] = ChoiceResult(
+                    choice=str(getattr(ans, "choice", "")),
+                    distribution=getattr(ans, "probabilities", {}),
+                    confidence=float(getattr(ans, "confidence", 1.0))
+                )
+            elif ans_type == "score" or hasattr(ans, "score"):
+                legend = getattr(ans, "legend", {})
+                score_val = float(getattr(ans, "score", 0.0))
+                closest_idx = round(score_val)
+                level_name = legend.get(closest_idx) if legend else None
+                scores[k] = ScoreResult(
+                    score=score_val,
+                    level=level_name,
+                    level_probabilities={str(lvl): p for lvl, p in getattr(ans, "probabilities", {}).items()},
+                    confidence=float(getattr(ans, "confidence", 1.0))
+                )
+
+        # Fallback if old SDK schema with separate attributes
+        if not nouls and hasattr(sdk_resp, "nouls") and sdk_resp.nouls:
             for k, v in sdk_resp.nouls.items():
                 prob = getattr(v, "probability", 0.95 if getattr(v, "noul", False) else 0.05)
-                nouls[k] = NoulResult(
-                    noul=bool(getattr(v, "noul", prob >= 0.5)),
-                    probability=prob,
-                    confidence=getattr(v, "confidence", 0.90),
-                    raw_response=getattr(v, "dict", lambda: {})() if hasattr(v, "dict") else None
-                )
+                nouls[k] = NoulResult(noul=bool(getattr(v, "noul", prob >= 0.5)), probability=prob, confidence=0.90)
 
-        if hasattr(sdk_resp, "choices") and sdk_resp.choices:
+        if not choices and hasattr(sdk_resp, "choices") and sdk_resp.choices:
             for k, v in sdk_resp.choices.items():
-                chosen = getattr(v, "choice", "")
-                dist = getattr(v, "distribution", {chosen: 1.0} if chosen else {})
-                choices[k] = ChoiceResult(
-                    choice=chosen,
-                    distribution=dist,
-                    confidence=getattr(v, "confidence", 0.90)
-                )
+                choices[k] = ChoiceResult(choice=getattr(v, "choice", ""), distribution=getattr(v, "distribution", {}), confidence=0.90)
 
-        if hasattr(sdk_resp, "scores") and sdk_resp.scores:
+        if not scores and hasattr(sdk_resp, "scores") and sdk_resp.scores:
             for k, v in sdk_resp.scores.items():
-                scores[k] = ScoreResult(
-                    score=float(getattr(v, "score", 3.0)),
-                    level=getattr(v, "level", None),
-                    level_probabilities=getattr(v, "level_probabilities", {}),
-                    confidence=getattr(v, "confidence", 0.90)
-                )
+                scores[k] = ScoreResult(score=float(getattr(v, "score", 3.0)), level=getattr(v, "level", None), confidence=0.90)
 
         return JevResponse(
             success=True,
