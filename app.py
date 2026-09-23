@@ -748,8 +748,8 @@ if "streamlined_res" in st.session_state:
 
     # Handle Fail-Loud AI Error Mode
     if getattr(res, "analysis_mode", "live") == "failed":
-        st.error(f"⚠️ **AI Engine Unreachable**: {esc(res.disqualification_reason)}")
-        st.info("Scoring was halted to prevent fake score fabrication. Please verify your connection to the Cloudflare AI worker and try again.")
+        st.error(f"⚠️ **Jev AI Engine Unreachable**: {esc(res.disqualification_reason)}")
+        st.info("Scoring was halted to prevent fake score fabrication. Please configure `JEV_API_KEY` in Streamlit Cloud Secrets (`Manage app` ➔ `Settings` ➔ `Secrets`) or environment variables and try again.")
     else:
         badge_class = "badge-disq" if res.is_disqualified else ("badge-a1" if "A1" in res.priority_tier else ("badge-a2" if "A2" in res.priority_tier else "badge-b1"))
         fit_color = "#EF4444" if res.is_disqualified else ("#10B981" if res.master_icp_score >= 70 else ("#3B82F6" if res.master_icp_score >= 55 else "#F59E0B"))
