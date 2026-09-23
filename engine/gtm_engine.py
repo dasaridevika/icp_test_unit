@@ -74,10 +74,24 @@ class FootprintAIAnalysis(BaseModel):
 
 
 class CompanyStandardsConfig(BaseModel):
-    company_name: str = "Enterprise GTM"
+    company_name: str = "Blackridge Research & Consulting"
     currency_symbol: str = "$"
     currency_code: str = "USD"
-    target_focus_industries: List[str] = Field(default_factory=list)
+    min_deal_size_usd: float = 5000.0
+    target_deal_size_usd: float = 25000.0
+    min_company_revenue_usd: float = 5000000.0
+    ideal_revenue_usd: float = 50000000.0
+    min_headcount: int = 20
+    ideal_headcount: int = 500
+    target_focus_industries: List[str] = Field(default_factory=lambda: [
+        "Energy, Utilities & Renewables",
+        "Infrastructure & Construction",
+        "Oil, Gas & Petrochemicals",
+        "Industrial Goods & Manufacturing",
+        "Automotive & Electric Mobility",
+        "Chemicals & Materials",
+        "Technology & Telecom"
+    ])
     tier1_territories: List[str] = Field(default_factory=lambda: [
         "United States", "Canada", "United Kingdom", "Germany", "France", "Japan", "India", "Australia", "Singapore", "United Arab Emirates", "Saudi Arabia"
     ])

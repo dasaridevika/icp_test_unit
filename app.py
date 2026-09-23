@@ -327,11 +327,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Initialize Session State
-# Initialize Session State
 if "company_config" not in st.session_state:
     st.session_state["company_config"] = CompanyStandardsConfig(
-        company_name="Enterprise Revenue Intelligence",
-        target_focus_industries=[],
+        company_name="Blackridge Research & Consulting",
+        min_deal_size_usd=5000.0,
+        target_deal_size_usd=25000.0,
+        min_company_revenue_usd=5000000.0,
+        ideal_revenue_usd=50000000.0,
+        min_headcount=20,
+        ideal_headcount=500,
+        target_focus_industries=[
+            "Energy, Utilities & Renewables",
+            "Infrastructure & Construction",
+            "Oil, Gas & Petrochemicals",
+            "Industrial Goods & Manufacturing",
+            "Automotive & Electric Mobility",
+            "Chemicals & Materials",
+            "Technology & Telecom"
+        ],
         tier1_territories=[
             "United States", "Canada", "United Kingdom", "Germany", "France", "Japan", "India", "Australia", "Singapore", "United Arab Emirates", "Saudi Arabia"
         ],
@@ -346,17 +359,17 @@ cfg: CompanyStandardsConfig = st.session_state["company_config"]
 # ==============================================================================
 # SETTINGS MODAL DIALOG (UNIFORMLY ALIGNED & PROFESSIONAL)
 # ==============================================================================
-@st.dialog("⚙️ Target Rules & Settings", width="medium")
+@st.dialog("⚙️ Company ICP Standards & Target Rules", width="medium")
 def show_settings_dialog():
-    st.caption("Configure organization identifier and geographic territory rules:")
+    st.caption("Configure company identifier, focus target industries, and geographic territory rules:")
 
     with st.form("modal_company_standards_form"):
         with st.container(border=True):
-            s_name = st.text_input("Organization Identifier", value=cfg.company_name)
+            s_name = st.text_input("Company / Org Identifier", value=cfg.company_name)
             
             s_focus_ind_raw = st.text_input(
-                "Focus Industries (Optional)",
-                value=", ".join(cfg.target_focus_industries) if cfg.target_focus_industries else ""
+                "Sweet-Spot Focus Industries (+5 Pts Bonus)",
+                value=", ".join(cfg.target_focus_industries) if cfg.target_focus_industries else "Technology, SaaS & IT, Manufacturing & Industrial Goods, Energy, Utilities & Renewables"
             )
             s_focus_ind = [i.strip() for i in s_focus_ind_raw.split(",") if i.strip()]
 
@@ -365,7 +378,7 @@ def show_settings_dialog():
                 value=", ".join(cfg.tier1_territories)
             )
             s_proh_geo = st.text_input(
-                "Sanctioned / Prohibited Territories (Disqualification)",
+                "Sanctioned / Prohibited Territories (Hard Disqualification)",
                 value=", ".join(cfg.prohibited_countries)
             )
 
@@ -375,6 +388,12 @@ def show_settings_dialog():
     if save_btn:
         new_cfg = CompanyStandardsConfig(
             company_name=s_name,
+            min_deal_size_usd=cfg.min_deal_size_usd,
+            target_deal_size_usd=cfg.target_deal_size_usd,
+            min_company_revenue_usd=cfg.min_company_revenue_usd,
+            ideal_revenue_usd=cfg.ideal_revenue_usd,
+            min_headcount=cfg.min_headcount,
+            ideal_headcount=cfg.ideal_headcount,
             target_focus_industries=s_focus_ind,
             tier1_territories=[t.strip() for t in s_t1_geo.split(",") if t.strip()],
             prohibited_countries=[p.strip() for p in s_proh_geo.split(",") if p.strip()],
@@ -434,7 +453,7 @@ with head_col1:
             <span class="hero-pill hero-pill-ai">🤖 AI Persona Classifier</span>
             <span class="hero-pill hero-pill-ai">⚡ AI Timeline Signal</span>
             <span class="hero-pill">⚖️ 4-Pillar Weighted Score</span>
-            <span class="hero-pill">🎯 Dynamic Calibration</span>
+            <span class="hero-pill">🎯 Dynamic Org Thresholds</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -454,7 +473,7 @@ with head_col2:
             st.session_state["selected_curr"] = selected_curr
             st.rerun()
     with c_sett:
-        if st.button("⚙️ Settings", use_container_width=True, help="Configure company standards and territory rules"):
+        if st.button("⚙️ Settings", use_container_width=True, help="Configure company standards, margins, and weights"):
             show_settings_dialog()
 
 # Clean Status Indicator Bar
@@ -464,14 +483,17 @@ with st.container(border=True):
     <div class="status-bar-container">
         <div class="status-bar-item">
             <span>🏢</span>
-            <span>Org: <strong class="status-pill">{esc(cfg.company_name)}</strong></span>
+            <span>Standards Org: <strong class="status-pill">{esc(cfg.company_name)}</strong></span>
+        </div>
+        <div class="status-bar-item">
+            <span>🎯</span>
+            <span>Target Verticals: <strong class="status-pill">{len(cfg.target_focus_industries)} Focus Sectors</strong></span>
         </div>
         <div class="status-bar-item">
             <span>💱</span>
             <span>Currency: <strong class="status-pill">{esc(curr_label)}</strong></span>
-        </div>
-        <div class="status-bar-item">
-            <span style="color:#059669; font-weight:700;">🤖 Jev AI Engine Active</span>
+            <span style="color:#CBD5E1;">&bull;</span>
+            <span style="color:#059669; font-weight:700;">🤖 AI Engine Active</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
