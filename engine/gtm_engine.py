@@ -525,8 +525,6 @@ class GTMScoringEngine:
             strengths.append(f"Multi-region footprint across {len(branches)} branch hub(s): {', '.join(branches)}.")
 
         risks = []
-        if norm_deal_usd < cfg.min_deal_size_usd:
-            risks.append(f"Target deal size (${norm_deal_usd:,.0f}) is below standard minimum floor (${cfg.min_deal_size_usd:,.0f}).")
         if not form.buying_intent:
             risks.append("Buying intent details are sparse; requires discovery on timeline urgency.")
 
