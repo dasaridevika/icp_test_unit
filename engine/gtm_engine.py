@@ -284,7 +284,7 @@ class GTMScoringEngine:
             email=form.contact_email,
             buying_intent=form.buying_intent,
             target_deal_size_usd=norm_deal_usd,
-            tech_stack=form.tech_stack_notes or "",
+            tech_stack=form.tech_stack_notes or form.existing_platform or form.uses_existing_platform or "",
             branches=form.branch_locations
         )
 
@@ -434,19 +434,65 @@ class GTMScoringEngine:
         # -------------------------------------------------------------
         # 4-Pillar Score Computation from Jev Primitives
         # -------------------------------------------------------------
+        # 1. Firmographics Scale (0-100)
         fg_score_obj = jev_res.scores.get("firmographic_fit")
-        firmo_score = min(100.0, (fg_score_obj.score / 5.0 * 100.0)) if fg_score_obj else 70.0
-
-        if role_scale_score:
-            qual_score = min(100.0, (role_scale_score.score / 10.0 * 100.0))
+        if fg_score_obj:
+            firmo_base = min(100.0, (fg_score_obj.score / 3.0 * 85.0) + 15.0) if fg_score_obj.score <= 3.0 else min(100.0, (fg_score_obj.score / 4.0 * 100.0))
         else:
-            qual_score = 85.0 if (budget_noul and budget_noul.noul) else 65.0
+            firmo_base = 70.0
 
-        intent_score_obj = jev_res.scores.get("intent_velocity")
-        readiness_score = min(100.0, (intent_score_obj.score / 5.0 * 100.0)) if intent_score_obj else 70.0
+        # Focus industry alignment bonus (+8 pts)
+        is_focus_ind = any(ind.lower() in (form.industry_sector or "").lower() for ind in cfg.target_focus_industries) if cfg.target_focus_industries else False
+        if is_focus_ind:
+            firmo_base = min(100.0, firmo_base + 8.0)
+        firmo_score = max(10.0, min(100.0, firmo_base))
 
-        val_score_obj = jev_res.scores.get("value_expansion")
-        techno_score = min(100.0, (val_score_obj.score / 5.0 * 100.0)) if val_score_obj else 70.0
+        # 2. Decision Authority (0-100)
+        if role_scale_score:
+            raw_role_score = role_scale_score.score
+            if raw_role_score <= 9.0:
+                qual_score = (raw_role_score / 9.0 * 85.0) + 15.0
+            else:
+                qual_score = (raw_role_score / 10.0 * 100.0)
+        else:
+            qual_score = 90.0 if sen_pts >= 4 else (75.0 if sen_pts >= 3 else 50.0)
+
+        if "C-Suite" in sen_str or sen_pts == 5:
+            qual_score = max(qual_score, 92.0)
+        elif "VP" in sen_str or sen_pts == 4:
+            qual_score = max(qual_score, 82.0)
+        qual_score = max(10.0, min(100.0, qual_score))
+
+        # 3. Intent & Readiness (0-100)
+        if "Immediate" in urg_str or "<30" in urg_str or "< 1 Month" in (form.timeline or "") or "RFP" in (form.buying_intent or "").upper():
+            readiness_score = 92.0
+        elif "1 to 3" in urg_str or "Active" in urg_str:
+            readiness_score = 78.0
+        elif "3 to 6" in urg_str:
+            readiness_score = 55.0
+        else:
+            intent_score_obj = jev_res.scores.get("intent_velocity")
+            if intent_score_obj:
+                readiness_score = (intent_score_obj.score / 3.0 * 80.0) + 20.0 if intent_score_obj.score <= 3.0 else (intent_score_obj.score / 4.0 * 100.0)
+            else:
+                readiness_score = 45.0
+        readiness_score = max(10.0, min(100.0, readiness_score))
+
+        # 4. Value & Technographics Synergy (0-100)
+        stack_text = (form.tech_stack_notes or form.existing_platform or form.uses_existing_platform or "").upper()
+        if "High Synergy" in eco_str or any(tool in stack_text for tool in ["SNOWFLAKE", "AWS", "SALESFORCE", "DATABRICKS", "AZURE", "MODERN CLOUD"]):
+            techno_score = 90.0
+        elif "Standard" in eco_str:
+            techno_score = 75.0
+        elif "Legacy" in eco_str:
+            techno_score = 35.0
+        else:
+            val_score_obj = jev_res.scores.get("value_expansion")
+            if val_score_obj:
+                techno_score = (val_score_obj.score / 3.0 * 75.0) + 20.0 if val_score_obj.score <= 3.0 else (val_score_obj.score / 4.0 * 100.0)
+            else:
+                techno_score = 60.0
+        techno_score = max(10.0, min(100.0, techno_score))
 
         firmo_pts_ui = max(1, min(5, int(round(firmo_score / 20.0))))
         techno_pts_ui = max(1, min(5, int(round(techno_score / 20.0))))

@@ -729,7 +729,8 @@ if calc_btn:
             buying_intent=f_intent.strip(),
             timeline=f_timeline.strip(),
             target_deal_size_usd=float(f_deal_total),
-            tech_stack_notes="",
+            tech_stack_notes=f_platform.strip(),
+            uses_existing_platform=f_platform.strip(),
             existing_platform=f_platform.strip()
         )
         with st.spinner("🤖 Evaluating prospect across GTM 4-Pillar ICP standards..."):
