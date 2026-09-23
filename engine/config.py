@@ -8,14 +8,9 @@ from pydantic import BaseModel, Field
 
 class OrganizationConfig(BaseModel):
     """Authoritative organization qualification criteria."""
-    org_name: str = "Enterprise GTM Revenue Intelligence"
+    org_name: str = "Revenue Intelligence Studio"
     currency_symbol: str = "$"
     currency_code: str = "USD"
-    min_deal_size_usd: float = 5000.0
-    target_deal_size_usd: float = 25000.0
-    ideal_annual_revenue_usd: float = 50000000.0
-    min_headcount: int = 25
-    ideal_headcount: int = 500
 
     # Target Sectors
     target_focus_industries: List[str] = Field(default_factory=lambda: [

@@ -70,10 +70,4 @@ class PolicyEngine:
                 result.disqualification_reason = f"Non-commercial persona detected: '{role_title}' does not have enterprise buying authority."
                 return result
 
-        # 3. Commercial Margin Check (Warning)
-        if min_deal_size_usd > 0 and target_deal_size_usd > 0 and target_deal_size_usd < min_deal_size_usd:
-            result.warnings.append(
-                f"Deal size (${target_deal_size_usd:,.0f} USD) is below organizational minimum viable deal floor (${min_deal_size_usd:,.0f} USD)."
-            )
-
         return result

@@ -74,24 +74,10 @@ class FootprintAIAnalysis(BaseModel):
 
 
 class CompanyStandardsConfig(BaseModel):
-    company_name: str = "Blackridge Research & Consulting"
+    company_name: str = "Enterprise GTM"
     currency_symbol: str = "$"
     currency_code: str = "USD"
-    min_deal_size_usd: float = 5000.0
-    target_deal_size_usd: float = 25000.0
-    min_company_revenue_usd: float = 5000000.0
-    ideal_revenue_usd: float = 50000000.0
-    min_headcount: int = 20
-    ideal_headcount: int = 500
-    target_focus_industries: List[str] = Field(default_factory=lambda: [
-        "Energy, Utilities & Renewables",
-        "Infrastructure & Construction",
-        "Oil, Gas & Petrochemicals",
-        "Industrial Goods & Manufacturing",
-        "Automotive & Electric Mobility",
-        "Chemicals & Materials",
-        "Technology & Telecom"
-    ])
+    target_focus_industries: List[str] = Field(default_factory=list)
     tier1_territories: List[str] = Field(default_factory=lambda: [
         "United States", "Canada", "United Kingdom", "Germany", "France", "Japan", "India", "Australia", "Singapore", "United Arab Emirates", "Saudi Arabia"
     ])
@@ -243,9 +229,7 @@ class GTMScoringEngine:
         policy_res: PolicyCheckResult = PolicyEngine.evaluate_compliance(
             location=form.location,
             role_title=form.contact_role_title,
-            prohibited_countries=cfg.prohibited_countries,
-            min_deal_size_usd=cfg.min_deal_size_usd,
-            target_deal_size_usd=norm_deal_usd
+            prohibited_countries=cfg.prohibited_countries
         )
 
         if policy_res.is_disqualified:
