@@ -19,12 +19,6 @@ except (ImportError, ModuleNotFoundError):
         return default
 
 
-DISQUALIFYING_ROLES = [
-    "student", "intern", "graduate student", "unemployed", "job seeker",
-    "freelancer looking for work", "academic research only", "hobbyist"
-]
-
-
 class PolicyCheckResult(BaseModel):
     is_disqualified: bool = False
     disqualification_reason: str = ""
@@ -42,32 +36,19 @@ class PolicyEngine:
         cls,
         location: str,
         role_title: str,
-        prohibited_countries: Optional[List[str]] = None,
-        min_deal_size_usd: float = 0.0,
-        target_deal_size_usd: float = 0.0
+        prohibited_countries: Optional[List[str]] = None
     ) -> PolicyCheckResult:
         result = PolicyCheckResult()
         loc_lower = (location or "").lower().strip()
-        role_lower = (role_title or "").lower().strip()
 
-        # 1. Sanctions / Prohibited Territories Check
-        prohibited = prohibited_countries or [
-            "North Korea", "Iran", "Syria", "Cuba", "Russia", "Belarus"
-        ]
-        for country in prohibited:
-            c_clean = country.strip().lower()
-            if c_clean and c_clean in loc_lower:
-                result.is_disqualified = True
-                result.matched_rule = "SANCTIONED_TERRITORY"
-                result.disqualification_reason = f"Prohibited / Sanctioned territory detected: '{country.strip()}' is blocked by corporate compliance policy."
-                return result
-
-        # 2. Anti-ICP Persona / Disqualifier Roles Check
-        for disq_role in DISQUALIFYING_ROLES:
-            if disq_role in role_lower:
-                result.is_disqualified = True
-                result.matched_rule = "ANTI_ICP_ROLE"
-                result.disqualification_reason = f"Non-commercial persona detected: '{role_title}' does not have enterprise buying authority."
-                return result
+        # 1. Dynamic Sanctions / Prohibited Territories Check
+        if prohibited_countries:
+            for country in prohibited_countries:
+                c_clean = country.strip().lower()
+                if c_clean and c_clean in loc_lower:
+                    result.is_disqualified = True
+                    result.matched_rule = "SANCTIONED_TERRITORY"
+                    result.disqualification_reason = f"Prohibited territory detected: '{country.strip()}' is blocked by compliance policy."
+                    return result
 
         return result
