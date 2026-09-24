@@ -432,67 +432,28 @@ class GTMScoringEngine:
         )
 
         # -------------------------------------------------------------
-        # 4-Pillar Score Computation from Jev Primitives
+        # 4-Pillar Score Computation from Jev Primitives (Pure Jev Scoring)
         # -------------------------------------------------------------
-        # 1. Firmographics Scale (0-100)
+        # 1. Firmographics Scale (0-3 scale from Jev -> 0-100)
         fg_score_obj = jev_res.scores.get("firmographic_fit")
-        if fg_score_obj:
-            firmo_base = min(100.0, (fg_score_obj.score / 3.0 * 85.0) + 15.0) if fg_score_obj.score <= 3.0 else min(100.0, (fg_score_obj.score / 4.0 * 100.0))
-        else:
-            firmo_base = 70.0
+        firmo_score = min(100.0, max(0.0, (float(fg_score_obj.score) / 3.0) * 100.0)) if fg_score_obj else 50.0
 
-        # Focus industry alignment bonus (+8 pts)
-        is_focus_ind = any(ind.lower() in (form.industry_sector or "").lower() for ind in cfg.target_focus_industries) if cfg.target_focus_industries else False
-        if is_focus_ind:
-            firmo_base = min(100.0, firmo_base + 8.0)
-        firmo_score = max(10.0, min(100.0, firmo_base))
-
-        # 2. Decision Authority (0-100)
+        # 2. Decision Authority (from Jev role_authority_scale [0-9] or authority_readiness [0-3] -> 0-100)
+        auth_score_obj = jev_res.scores.get("authority_readiness")
         if role_scale_score:
-            raw_role_score = role_scale_score.score
-            if raw_role_score <= 9.0:
-                qual_score = (raw_role_score / 9.0 * 85.0) + 15.0
-            else:
-                qual_score = (raw_role_score / 10.0 * 100.0)
+            qual_score = min(100.0, max(0.0, (float(role_scale_score.score) / 9.0) * 100.0))
+        elif auth_score_obj:
+            qual_score = min(100.0, max(0.0, (float(auth_score_obj.score) / 3.0) * 100.0))
         else:
-            qual_score = 90.0 if sen_pts >= 4 else (75.0 if sen_pts >= 3 else 50.0)
+            qual_score = 50.0
 
-        if "C-Suite" in sen_str or sen_pts == 5:
-            qual_score = max(qual_score, 92.0)
-        elif "VP" in sen_str or sen_pts == 4:
-            qual_score = max(qual_score, 82.0)
-        qual_score = max(10.0, min(100.0, qual_score))
+        # 3. Intent & Readiness (0-3 scale from Jev -> 0-100)
+        intent_score_obj = jev_res.scores.get("intent_velocity")
+        readiness_score = min(100.0, max(0.0, (float(intent_score_obj.score) / 3.0) * 100.0)) if intent_score_obj else 50.0
 
-        # 3. Intent & Readiness (0-100)
-        if "Immediate" in urg_str or "<30" in urg_str or "< 1 Month" in (form.timeline or "") or "RFP" in (form.buying_intent or "").upper():
-            readiness_score = 92.0
-        elif "1 to 3" in urg_str or "Active" in urg_str:
-            readiness_score = 78.0
-        elif "3 to 6" in urg_str:
-            readiness_score = 55.0
-        else:
-            intent_score_obj = jev_res.scores.get("intent_velocity")
-            if intent_score_obj:
-                readiness_score = (intent_score_obj.score / 3.0 * 80.0) + 20.0 if intent_score_obj.score <= 3.0 else (intent_score_obj.score / 4.0 * 100.0)
-            else:
-                readiness_score = 45.0
-        readiness_score = max(10.0, min(100.0, readiness_score))
-
-        # 4. Value & Technographics Synergy (0-100)
-        stack_text = (form.tech_stack_notes or form.existing_platform or form.uses_existing_platform or "").upper()
-        if "High Synergy" in eco_str or any(tool in stack_text for tool in ["SNOWFLAKE", "AWS", "SALESFORCE", "DATABRICKS", "AZURE", "MODERN CLOUD"]):
-            techno_score = 90.0
-        elif "Standard" in eco_str:
-            techno_score = 75.0
-        elif "Legacy" in eco_str:
-            techno_score = 35.0
-        else:
-            val_score_obj = jev_res.scores.get("value_expansion")
-            if val_score_obj:
-                techno_score = (val_score_obj.score / 3.0 * 75.0) + 20.0 if val_score_obj.score <= 3.0 else (val_score_obj.score / 4.0 * 100.0)
-            else:
-                techno_score = 60.0
-        techno_score = max(10.0, min(100.0, techno_score))
+        # 4. Value & Technographics Synergy (0-3 scale from Jev -> 0-100)
+        val_score_obj = jev_res.scores.get("value_expansion")
+        techno_score = min(100.0, max(0.0, (float(val_score_obj.score) / 3.0) * 100.0)) if val_score_obj else 50.0
 
         firmo_pts_ui = max(1, min(5, int(round(firmo_score / 20.0))))
         techno_pts_ui = max(1, min(5, int(round(techno_score / 20.0))))
@@ -588,11 +549,16 @@ class GTMScoringEngine:
         if not form.buying_intent:
             risks.append("Buying intent details are sparse; requires discovery on timeline urgency.")
 
+        firmo_rat = fg_score_obj.level if (fg_score_obj and fg_score_obj.level) else ai_niche.rationale
+        auth_rat = ai_role.rationale if ai_role.rationale else (role_scale_score.level if role_scale_score and role_scale_score.level else "Jev evaluated decision authority.")
+        intent_rat = ai_intent.rationale if ai_intent.rationale else (intent_score_obj.level if intent_score_obj and intent_score_obj.level else "Jev evaluated buying urgency.")
+        tech_rat = ai_tech.rationale if ai_tech.rationale else (val_score_obj.level if val_score_obj and val_score_obj.level else "Jev evaluated ecosystem compatibility.")
+
         tracker_items = [
-            ScoringTrackerItem(pillar_name="Firmographics Scale", allotted_score=pillar_firmo.score, weight_pct=cfg.weight_firmographics, points_contributed=c_firmo, basis_criterion="Scale & Complexity", verified_signals=strengths[:2], deduction_gaps=[], decision_rationale="Jev verified firmographic scale."),
-            ScoringTrackerItem(pillar_name="Decision Authority", allotted_score=pillar_auth.score, weight_pct=cfg.weight_authority, points_contributed=c_auth, basis_criterion="Executive Stakeholder", verified_signals=[f"Role: {role_t}"], deduction_gaps=[], decision_rationale=ai_role.rationale),
-            ScoringTrackerItem(pillar_name="Intent & Readiness", allotted_score=pillar_intent.score, weight_pct=cfg.weight_intent, points_contributed=c_intent, basis_criterion="Buying Velocity", verified_signals=[f"Urgency: {ai_intent.urgency_tier}"], deduction_gaps=risks, decision_rationale=ai_intent.rationale),
-            ScoringTrackerItem(pillar_name="Value & Tech Synergy", allotted_score=pillar_val.score, weight_pct=cfg.weight_value, points_contributed=c_val, basis_criterion="Contract Potential", verified_signals=[f"Deal: {prospect_deal_str}"], deduction_gaps=[], decision_rationale=ai_tech.rationale)
+            ScoringTrackerItem(pillar_name="Firmographics Scale", allotted_score=pillar_firmo.score, weight_pct=cfg.weight_firmographics, points_contributed=c_firmo, basis_criterion="Scale & Complexity", verified_signals=strengths[:2], deduction_gaps=[], decision_rationale=firmo_rat),
+            ScoringTrackerItem(pillar_name="Decision Authority", allotted_score=pillar_auth.score, weight_pct=cfg.weight_authority, points_contributed=c_auth, basis_criterion="Executive Stakeholder", verified_signals=[f"Role: {role_t}"], deduction_gaps=[], decision_rationale=auth_rat),
+            ScoringTrackerItem(pillar_name="Intent & Readiness", allotted_score=pillar_intent.score, weight_pct=cfg.weight_intent, points_contributed=c_intent, basis_criterion="Buying Velocity", verified_signals=[f"Urgency: {ai_intent.urgency_tier}"], deduction_gaps=risks, decision_rationale=intent_rat),
+            ScoringTrackerItem(pillar_name="Value & Tech Synergy", allotted_score=pillar_val.score, weight_pct=cfg.weight_value, points_contributed=c_val, basis_criterion="Contract Potential", verified_signals=[f"Deal: {prospect_deal_str}"], deduction_gaps=[], decision_rationale=tech_rat)
         ]
 
         return StreamlinedScoringResult(
