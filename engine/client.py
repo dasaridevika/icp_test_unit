@@ -69,19 +69,23 @@ class JevClient:
         key_found = (
             api_key or
             os.environ.get("JEV_API_KEY") or
+            os.environ.get("jev_api_key") or
             os.environ.get("TYPESAFE_API_KEY") or
+            os.environ.get("typesafe_api_key") or
             ""
-        ).strip()
+        ).strip().strip('"').strip("'")
 
         if not key_found:
             try:
                 import streamlit as st
-                if hasattr(st, "secrets"):
-                    key_found = str(
-                        st.secrets.get("JEV_API_KEY") or
-                        st.secrets.get("TYPESAFE_API_KEY") or
-                        ""
-                    ).strip()
+                if hasattr(st, "secrets") and st.secrets:
+                    for k in ["JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key"]:
+                        val = st.secrets.get(k)
+                        if val:
+                            candidate = str(val).strip().strip('"').strip("'")
+                            if len(candidate) > 3:
+                                key_found = candidate
+                                break
             except Exception:
                 pass
 
