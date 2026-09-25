@@ -31,8 +31,7 @@ class PolicyEngine:
     def evaluate_compliance(
         cls,
         location: str,
-        prohibited_countries: Optional[List[str]] = None,
-        role_title: Optional[str] = None
+        prohibited_countries: Optional[List[str]] = None
     ) -> PolicyCheckResult:
         result = PolicyCheckResult()
         loc_clean = (location or "").strip()
