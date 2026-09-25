@@ -65,27 +65,53 @@ class JevClient:
         api_key: Optional[str] = None,
         api_url: Optional[str] = None
     ):
-        # Read API key from parameter, OS environment, or Streamlit Cloud Secrets (st.secrets)
-        key_found = (
-            api_key or
-            os.environ.get("JEV_API_KEY") or
-            os.environ.get("jev_api_key") or
-            os.environ.get("TYPESAFE_API_KEY") or
-            os.environ.get("typesafe_api_key") or
-            ""
-        ).strip().strip('"').strip("'")
+        # Read API key from parameter, Streamlit session state, OS environment, or Streamlit Cloud Secrets (st.secrets)
+        key_found = (api_key or "").strip().strip('"').strip("'")
 
+        # 1. Check Streamlit Session State (UI input override)
+        if not key_found:
+            try:
+                import streamlit as st
+                for s_key in ["user_jev_api_key", "JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key"]:
+                    val = st.session_state.get(s_key)
+                    if val and isinstance(val, str) and len(val.strip().strip('"').strip("'")) > 5:
+                        key_found = val.strip().strip('"').strip("'")
+                        break
+            except Exception:
+                pass
+
+        # 2. Check OS Environment Variables
+        if not key_found:
+            for env_k in ["JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key"]:
+                val = os.environ.get(env_k)
+                if val and len(val.strip().strip('"').strip("'")) > 5:
+                    key_found = val.strip().strip('"').strip("'")
+                    break
+
+        # 3. Check Streamlit Cloud Secrets (st.secrets) - Recursive deep traversal
         if not key_found:
             try:
                 import streamlit as st
                 if hasattr(st, "secrets") and st.secrets:
-                    for k in ["JEV_API_KEY", "jev_api_key", "TYPESAFE_API_KEY", "typesafe_api_key"]:
-                        val = st.secrets.get(k)
-                        if val:
-                            candidate = str(val).strip().strip('"').strip("'")
-                            if len(candidate) > 3:
-                                key_found = candidate
-                                break
+                    def _search_secrets(sec_obj):
+                        if isinstance(sec_obj, dict) or hasattr(sec_obj, "items"):
+                            for k, v in sec_obj.items():
+                                k_lower = str(k).lower().strip()
+                                if k_lower in ("jev_api_key", "typesafe_api_key", "api_key", "jev_key", "typesafe_key"):
+                                    if v and isinstance(v, str) and len(v.strip().strip('"').strip("'")) > 5:
+                                        return v.strip().strip('"').strip("'")
+                                if isinstance(v, (dict, list)) or hasattr(v, "items"):
+                                    res = _search_secrets(v)
+                                    if res:
+                                        return res
+                        elif isinstance(sec_obj, (list, tuple)):
+                            for item in sec_obj:
+                                res = _search_secrets(item)
+                                if res:
+                                    return res
+                        return None
+
+                    key_found = _search_secrets(st.secrets) or ""
             except Exception:
                 pass
 

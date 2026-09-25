@@ -1,8 +1,4 @@
-"""
-Deterministic Policy & Compliance Layer.
-Short-circuits scoring before calling any LLM if hard constraints or sanctions are triggered.
-"""
-
+import re
 from typing import List, Optional, Tuple
 try:
     from pydantic import BaseModel, Field
@@ -35,17 +31,22 @@ class PolicyEngine:
     def evaluate_compliance(
         cls,
         location: str,
-        role_title: str,
-        prohibited_countries: Optional[List[str]] = None
+        prohibited_countries: Optional[List[str]] = None,
+        role_title: Optional[str] = None
     ) -> PolicyCheckResult:
         result = PolicyCheckResult()
-        loc_lower = (location or "").lower().strip()
+        loc_clean = (location or "").strip()
+        loc_lower = loc_clean.lower()
 
-        # 1. Dynamic Sanctions / Prohibited Territories Check
-        if prohibited_countries:
+        # 1. Dynamic Sanctions / Prohibited Territories Check (Exact word boundary matching)
+        if prohibited_countries and loc_lower:
             for country in prohibited_countries:
                 c_clean = country.strip().lower()
-                if c_clean and c_clean in loc_lower:
+                if not c_clean:
+                    continue
+                # Match full country name using word boundaries to avoid false positives (e.g. "Miranda, Chile" matching "Iran")
+                pattern = rf"\b{re.escape(c_clean)}\b"
+                if re.search(pattern, loc_lower):
                     result.is_disqualified = True
                     result.matched_rule = "SANCTIONED_TERRITORY"
                     result.disqualification_reason = f"Prohibited territory detected: '{country.strip()}' is blocked by compliance policy."

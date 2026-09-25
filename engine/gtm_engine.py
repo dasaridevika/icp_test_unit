@@ -242,7 +242,6 @@ class GTMScoringEngine:
         # 2. Deterministic Policy & Compliance Check
         policy_res: PolicyCheckResult = PolicyEngine.evaluate_compliance(
             location=form.location,
-            role_title=form.contact_role_title,
             prohibited_countries=cfg.prohibited_countries
         )
 

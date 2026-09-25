@@ -382,10 +382,19 @@ def show_settings_dialog():
                 value=", ".join(cfg.prohibited_countries)
             )
 
+            s_api_key = st.text_input(
+                "🔑 Jev / TypeSafe API Key (Session Override)",
+                value=st.session_state.get("user_jev_api_key", ""),
+                type="password",
+                help="Enter your JEV_API_KEY here to activate live AI scoring directly in this session."
+            )
+
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         save_btn = st.form_submit_button("💾 Save Settings", type="primary", use_container_width=True)
 
     if save_btn:
+        if s_api_key.strip():
+            st.session_state["user_jev_api_key"] = s_api_key.strip()
         new_cfg = CompanyStandardsConfig(
             company_name=s_name,
             min_deal_size_usd=cfg.min_deal_size_usd,
@@ -733,6 +742,7 @@ if calc_btn:
             uses_existing_platform=f_platform.strip(),
             existing_platform=f_platform.strip()
         )
+        st.session_state["last_lead_submission"] = submission
         with st.spinner("🤖 Evaluating prospect across GTM 4-Pillar ICP standards..."):
             res: StreamlinedScoringResult = GTMScoringEngine.evaluate(submission, cfg)
         st.session_state["streamlined_res"] = res
@@ -752,7 +762,31 @@ if "streamlined_res" in st.session_state:
     # Handle Fail-Loud AI Error Mode
     if getattr(res, "analysis_mode", "live") == "failed":
         st.error(f"⚠️ **Jev AI Engine Unreachable**: {esc(res.disqualification_reason)}")
-        st.info("Scoring was halted to prevent fake score fabrication. Please configure `JEV_API_KEY` in Streamlit Cloud Secrets (`Manage app` ➔ `Settings` ➔ `Secrets`) or environment variables and try again.")
+        
+        with st.container(border=True):
+            st.markdown("### 🔑 Enter Jev API Key to Activate Scoring")
+            st.markdown(
+                "You can paste your **JEV_API_KEY** directly below for this session, or configure it permanently in "
+                "**Streamlit Cloud Secrets** (`Manage app ➔ Settings ➔ Secrets` as `JEV_API_KEY = \"your_api_key\"`)."
+            )
+            with st.form("quick_key_entry_form"):
+                quick_key_input = st.text_input(
+                    "Jev / TypeSafe API Key",
+                    type="password",
+                    placeholder="Enter or paste your Jev API Key here...",
+                    help="Your key is stored securely in this session."
+                )
+                q_col1, _ = st.columns([2, 3])
+                with q_col1:
+                    save_q_key = st.form_submit_button("⚡ Save Key & Qualify Lead", type="primary", use_container_width=True)
+
+                if save_q_key and quick_key_input.strip():
+                    st.session_state["user_jev_api_key"] = quick_key_input.strip()
+                    if "last_lead_submission" in st.session_state:
+                        with st.spinner("🤖 Running Jev AI System-1 Evaluation..."):
+                            re_res = GTMScoringEngine.evaluate(st.session_state["last_lead_submission"], cfg)
+                            st.session_state["streamlined_res"] = re_res
+                    st.rerun()
     else:
         badge_class = "badge-disq" if res.is_disqualified else ("badge-a1" if "A1" in res.priority_tier else ("badge-a2" if "A2" in res.priority_tier else "badge-b1"))
         fit_color = "#EF4444" if res.is_disqualified else ("#10B981" if res.master_icp_score >= 70 else ("#3B82F6" if res.master_icp_score >= 55 else "#F59E0B"))
